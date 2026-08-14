@@ -10,6 +10,7 @@ services:
         COMMIT: ${COMMIT:-none}
         BUILD_DATE: ${BUILD_DATE:-unknown}
     container_name: cli-proxy-api
+    command: ["--local-model"]
     # env_file:
     #   - .env
     environment:
