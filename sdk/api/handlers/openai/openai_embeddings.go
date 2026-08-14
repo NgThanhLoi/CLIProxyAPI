@@ -20,7 +20,7 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -33,8 +33,7 @@ import (
 // ---- minimal config view (only what embeddings needs) ----------------------
 
 type embedProviderEntry struct {
-	Name         string `yaml:"name"`
-	BaseURL      string `yaml:"base-url"`
+	BaseURL       string `yaml:"base-url"`
 	APIKeyEntries []struct {
 		APIKey string `yaml:"api-key"`
 	} `yaml:"api-key-entries"`
@@ -89,16 +88,12 @@ func resolveEmbedProvider(modelName string) (string, []string, string, bool) {
 	return "", nil, "", false
 }
 
-var embedRRMu sync.Mutex
-var embedRRIdx = 0
+var embedRRIdx atomic.Uint64
 
 // pickEmbedKey round-robins across the provider's api keys.
 func pickEmbedKey(keys []string) string {
-	embedRRMu.Lock()
-	defer embedRRMu.Unlock()
-	idx := embedRRIdx % len(keys)
-	embedRRIdx++
-	return keys[idx]
+	idx := embedRRIdx.Add(1) - 1
+	return keys[idx%uint64(len(keys))]
 }
 
 // Embeddings handles POST /v1/embeddings (OpenAI-compatible).
