@@ -635,6 +635,25 @@ nonstream-keepalive-interval: 0
 #         alias: "claude-opus-4.66"
 #       - name: "kimi-k2.5"
 #         alias: "claude-opus-4.66"
+#
+#   # CommandCode provider example (/alpha/generate CLI endpoint)
+#   - name: "commandcode"
+#     base-url: "https://api.commandcode.ai/alpha/generate"
+#     chat-completions-path: none # required: omit /chat/completions suffix
+#     headers:
+#       x-command-code-version: "0.18.10"
+#       User-Agent: "command-code/0.18.10"
+#     api-key-entries:
+#       - api-key: "user_..."
+#     models:
+#       - name: "deepseek/deepseek-v4-flash"
+#         alias: "deepseek-v4-flash"
+#       - name: "meta/muse-spark-1.2-contributor"
+#         alias: "muse-spark-1.2-contributor"
+#       - name: "deepseek/deepseek-v4-pro"
+#         alias: "deepseek-v4-pro"
+#       - name: "claude-sonnet-5"
+#         alias: "cc-sonnet-5"
 
 # Vertex API keys (Vertex-compatible endpoints, base-url is optional)
 # vertex-api-key:
