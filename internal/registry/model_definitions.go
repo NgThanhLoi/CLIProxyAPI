@@ -30,6 +30,7 @@ type staticModelsJSON struct {
 	Kimi        []*ModelInfo `json:"kimi"`
 	Antigravity []*ModelInfo `json:"antigravity"`
 	XAI         []*ModelInfo `json:"xai"`
+	Vercel      []*ModelInfo `json:"vercel"`
 }
 
 // GetClaudeModels returns the standard Claude model definitions.
@@ -80,6 +81,11 @@ func GetKimiModels() []*ModelInfo {
 // GetAntigravityModels returns the standard Antigravity model definitions.
 func GetAntigravityModels() []*ModelInfo {
 	return cloneModelInfos(getModels().Antigravity)
+}
+
+// GetVercelModels returns the standard Vercel (FX) model definitions.
+func GetVercelModels() []*ModelInfo {
+	return cloneModelInfos(getModels().Vercel)
 }
 
 // AntigravityWebSearchModelFor returns the Antigravity model that should run a
@@ -324,6 +330,8 @@ func GetStaticModelDefinitionsByChannel(channel string) []*ModelInfo {
 		return GetAntigravityModels()
 	case "xai", "x-ai", "grok":
 		return GetXAIModels()
+	case "vercel", "fx":
+		return GetVercelModels()
 	default:
 		return nil
 	}
@@ -346,6 +354,7 @@ func LookupStaticModelInfo(modelID string) *ModelInfo {
 		data.Kimi,
 		data.Antigravity,
 		data.XAI,
+		data.Vercel,
 	}
 	for _, models := range allModels {
 		for _, m := range models {

@@ -43,14 +43,16 @@ func TestOpenAICompatExecutorToolResultContentByInputModalities(t *testing.T) {
 			defer server.Close()
 
 			executor := NewOpenAICompatExecutor("openai-compatibility", &config.Config{
-				OpenAICompatibility: []config.OpenAICompatibility{{
-					Name: "compat",
-					Models: []config.OpenAICompatibilityModel{{
-						Name:            "mapped-model",
-						Alias:           "claude-client",
-						InputModalities: tt.inputModalities,
+				SDKConfig: config.SDKConfig{
+					OpenAICompatibility: []config.OpenAICompatibility{{
+						Name: "compat",
+						Models: []config.OpenAICompatibilityModel{{
+							Name:            "mapped-model",
+							Alias:           "claude-client",
+							InputModalities: tt.inputModalities,
+						}},
 					}},
-				}},
+				},
 			})
 			auth := &cliproxyauth.Auth{
 				Provider: "openai-compatibility",

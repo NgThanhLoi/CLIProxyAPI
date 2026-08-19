@@ -23,9 +23,11 @@ func TestCustomMagicHeaders_OpenAICompat(t *testing.T) {
 	defer server.Close()
 
 	executor := NewOpenAICompatExecutor("openai-compatibility", &config.Config{
-		OpenAICompatibility: []config.OpenAICompatibility{{
-			Name: "compat",
-		}},
+		SDKConfig: config.SDKConfig{
+			OpenAICompatibility: []config.OpenAICompatibility{{
+				Name: "compat",
+			}},
+		},
 	})
 	auth := &cliproxyauth.Auth{
 		Provider: "openai-compatibility",
@@ -308,9 +310,11 @@ func TestCustomMagicHeaders_OpenAICompat_Stream(t *testing.T) {
 	defer server.Close()
 
 	executor := NewOpenAICompatExecutor("openai-compatibility", &config.Config{
-		OpenAICompatibility: []config.OpenAICompatibility{{
-			Name: "compat",
-		}},
+		SDKConfig: config.SDKConfig{
+			OpenAICompatibility: []config.OpenAICompatibility{{
+				Name: "compat",
+			}},
+		},
 	})
 	auth := &cliproxyauth.Auth{
 		Provider: "openai-compatibility",

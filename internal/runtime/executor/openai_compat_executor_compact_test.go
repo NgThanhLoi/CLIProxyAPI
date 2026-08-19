@@ -33,10 +33,12 @@ func TestOpenAICompatExecutorCompactPassthrough(t *testing.T) {
 	defer server.Close()
 
 	executor := NewOpenAICompatExecutor("openai-compatibility", &config.Config{
-		OpenAICompatibility: []config.OpenAICompatibility{{
-			Name:                  "compat",
-			SupportPromptCacheKey: true,
-		}},
+		SDKConfig: config.SDKConfig{
+			OpenAICompatibility: []config.OpenAICompatibility{{
+				Name:                  "compat",
+				SupportPromptCacheKey: true,
+			}},
+		},
 	})
 	auth := &cliproxyauth.Auth{
 		Provider: "openai-compatibility",
@@ -211,10 +213,12 @@ func TestOpenAICompatExecutorApplyPromptCacheKey(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			executor := NewOpenAICompatExecutor("openai-compatibility", &config.Config{
-				OpenAICompatibility: []config.OpenAICompatibility{{
-					Name:                  "compat",
-					SupportPromptCacheKey: test.support,
-				}},
+				SDKConfig: config.SDKConfig{
+					OpenAICompatibility: []config.OpenAICompatibility{{
+						Name:                  "compat",
+						SupportPromptCacheKey: test.support,
+					}},
+				},
 			})
 			auth := &cliproxyauth.Auth{
 				Provider: "openai-compatibility",
@@ -251,10 +255,12 @@ func TestOpenAICompatExecutorApplyPromptCacheKey(t *testing.T) {
 
 func TestOpenAICompatExecutorPromptCacheKeyCallerValueWinsPayloadOverride(t *testing.T) {
 	executor := NewOpenAICompatExecutor("openai-compatibility", &config.Config{
-		OpenAICompatibility: []config.OpenAICompatibility{{
-			Name:                  "compat",
-			SupportPromptCacheKey: true,
-		}},
+		SDKConfig: config.SDKConfig{
+			OpenAICompatibility: []config.OpenAICompatibility{{
+				Name:                  "compat",
+				SupportPromptCacheKey: true,
+			}},
+		},
 	})
 	auth := &cliproxyauth.Auth{
 		Provider: "openai-compatibility",
@@ -302,10 +308,12 @@ func TestOpenAICompatExecutorPromptCacheKeyCallerValueWinsPayloadOverride(t *tes
 
 func TestOpenAICompatExecutorPromptCacheKeyIsModelAndProtocolScoped(t *testing.T) {
 	executor := NewOpenAICompatExecutor("openai-compatibility", &config.Config{
-		OpenAICompatibility: []config.OpenAICompatibility{{
-			Name:                  "compat",
-			SupportPromptCacheKey: true,
-		}},
+		SDKConfig: config.SDKConfig{
+			OpenAICompatibility: []config.OpenAICompatibility{{
+				Name:                  "compat",
+				SupportPromptCacheKey: true,
+			}},
+		},
 	})
 	auth := &cliproxyauth.Auth{
 		Provider: "openai-compatibility",
@@ -346,9 +354,11 @@ func TestOpenAICompatExecutorPromptCacheKeyIsModelAndProtocolScoped(t *testing.T
 
 func TestOpenAICompatExecutorPromptCacheKeyUsesConfigIndex(t *testing.T) {
 	executor := NewOpenAICompatExecutor("openai-compatibility", &config.Config{
-		OpenAICompatibility: []config.OpenAICompatibility{
-			{Name: "duplicate", SupportPromptCacheKey: false},
-			{Name: "duplicate", SupportPromptCacheKey: true},
+		SDKConfig: config.SDKConfig{
+			OpenAICompatibility: []config.OpenAICompatibility{
+				{Name: "duplicate", SupportPromptCacheKey: false},
+				{Name: "duplicate", SupportPromptCacheKey: true},
+			},
 		},
 	})
 	payload := []byte(`{"model":"gpt-5.6","metadata":{"user_id":"{\"session_id\":\"cache-session\"}"}}`)
@@ -392,9 +402,11 @@ func TestOpenAICompatExecutorPromptCacheKeyUsesConfigIndex(t *testing.T) {
 
 func TestOpenAICompatExecutorPromptCacheKeyIgnoresConfigIndexForNonConfigAuth(t *testing.T) {
 	executor := NewOpenAICompatExecutor("openai-compatibility", &config.Config{
-		OpenAICompatibility: []config.OpenAICompatibility{
-			{Name: "duplicate", SupportPromptCacheKey: false},
-			{Name: "duplicate", SupportPromptCacheKey: true},
+		SDKConfig: config.SDKConfig{
+			OpenAICompatibility: []config.OpenAICompatibility{
+				{Name: "duplicate", SupportPromptCacheKey: false},
+				{Name: "duplicate", SupportPromptCacheKey: true},
+			},
 		},
 	})
 	auth := &cliproxyauth.Auth{
@@ -432,10 +444,12 @@ func TestOpenAICompatExecutorPromptCacheKeyExecute(t *testing.T) {
 	defer server.Close()
 
 	executor := NewOpenAICompatExecutor("openai-compatibility", &config.Config{
-		OpenAICompatibility: []config.OpenAICompatibility{{
-			Name:                  "compat",
-			SupportPromptCacheKey: true,
-		}},
+		SDKConfig: config.SDKConfig{
+			OpenAICompatibility: []config.OpenAICompatibility{{
+				Name:                  "compat",
+				SupportPromptCacheKey: true,
+			}},
+		},
 	})
 	auth := &cliproxyauth.Auth{
 		Provider: "openai-compatibility",
@@ -472,10 +486,12 @@ func TestOpenAICompatExecutorPromptCacheKeyExecuteStream(t *testing.T) {
 	defer server.Close()
 
 	executor := NewOpenAICompatExecutor("openai-compatibility", &config.Config{
-		OpenAICompatibility: []config.OpenAICompatibility{{
-			Name:                  "compat",
-			SupportPromptCacheKey: true,
-		}},
+		SDKConfig: config.SDKConfig{
+			OpenAICompatibility: []config.OpenAICompatibility{{
+				Name:                  "compat",
+				SupportPromptCacheKey: true,
+			}},
+		},
 	})
 	auth := &cliproxyauth.Auth{
 		Provider: "openai-compatibility",
@@ -518,10 +534,12 @@ func TestOpenAICompatExecutorPromptCacheKeyStreamCompactSkipped(t *testing.T) {
 	defer server.Close()
 
 	executor := NewOpenAICompatExecutor("openai-compatibility", &config.Config{
-		OpenAICompatibility: []config.OpenAICompatibility{{
-			Name:                  "compat",
-			SupportPromptCacheKey: true,
-		}},
+		SDKConfig: config.SDKConfig{
+			OpenAICompatibility: []config.OpenAICompatibility{{
+				Name:                  "compat",
+				SupportPromptCacheKey: true,
+			}},
+		},
 	})
 	auth := &cliproxyauth.Auth{
 		Provider: "openai-compatibility",
@@ -569,10 +587,12 @@ func TestOpenAICompatExecutorImagesGenerationsPassthrough(t *testing.T) {
 	defer server.Close()
 
 	executor := NewOpenAICompatExecutor("openai-compatibility", &config.Config{
-		OpenAICompatibility: []config.OpenAICompatibility{{
-			Name:                  "compat",
-			SupportPromptCacheKey: true,
-		}},
+		SDKConfig: config.SDKConfig{
+			OpenAICompatibility: []config.OpenAICompatibility{{
+				Name:                  "compat",
+				SupportPromptCacheKey: true,
+			}},
+		},
 	})
 	auth := &cliproxyauth.Auth{
 		Provider: "openai-compatibility",
