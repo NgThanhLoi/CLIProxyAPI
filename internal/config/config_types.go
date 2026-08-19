@@ -372,6 +372,7 @@ type ClaudeKey struct {
 	// Nil or a negative value means "use the global request-retry". 0 disables retries.
 	RequestRetry *int `yaml:"request-retry,omitempty" json:"request-retry,omitempty"`
 
+
 	// RequestScopedErrors configures custom classification rules for upstream errors.
 	RequestScopedErrors []RequestScopedErrorRule `yaml:"request-scoped-errors,omitempty" json:"request-scoped-errors,omitempty"`
 
@@ -475,6 +476,7 @@ type CodexKey struct {
 	// Nil or a negative value means "use the global request-retry". 0 disables retries.
 	RequestRetry *int `yaml:"request-retry,omitempty" json:"request-retry,omitempty"`
 
+
 	// RequestScopedErrors configures custom classification rules for upstream errors.
 	RequestScopedErrors []RequestScopedErrorRule `yaml:"request-scoped-errors,omitempty" json:"request-scoped-errors,omitempty"`
 }
@@ -572,6 +574,7 @@ type GeminiKey struct {
 	// Nil or a negative value means "use the global request-retry". 0 disables retries.
 	RequestRetry *int `yaml:"request-retry,omitempty" json:"request-retry,omitempty"`
 
+
 	// RequestScopedErrors configures custom classification rules for upstream errors.
 	RequestScopedErrors []RequestScopedErrorRule `yaml:"request-scoped-errors,omitempty" json:"request-scoped-errors,omitempty"`
 }
@@ -659,6 +662,10 @@ type OpenAICompatibility struct {
 	// Nil or a negative value means "use the global request-retry". 0 disables retries.
 	RequestRetry *int `yaml:"request-retry,omitempty" json:"request-retry,omitempty"`
 
+	// ChatCompletionsPath overrides the default /chat/completions endpoint path.
+	ChatCompletionsPath string `yaml:"chat-completions-path,omitempty" json:"chat-completions-path,omitempty"`
+
+
 	// RequestScopedErrors configures custom classification rules for upstream errors.
 	RequestScopedErrors []RequestScopedErrorRule `yaml:"request-scoped-errors,omitempty" json:"request-scoped-errors,omitempty"`
 }
@@ -723,3 +730,4 @@ func (m OpenAICompatibilityModel) GetForceMapping() bool    { return m.ForceMapp
 func (m OpenAICompatibilityModel) GetIsCompat() bool        { return m.IsCompat }
 
 func (m OpenAICompatibilityModel) GetThinking() *registry.ThinkingSupport { return m.Thinking }
+

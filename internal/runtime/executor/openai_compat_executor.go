@@ -104,7 +104,7 @@ func (e *OpenAICompatExecutor) Execute(ctx context.Context, auth *cliproxyauth.A
 	from := opts.SourceFormat
 	responseFormat := cliproxyexecutor.ResponseFormatOrSource(opts)
 	to := sdktranslator.FromString("openai")
-	endpoint := "/chat/completions"
+	endpoint := e.resolveEndpoint(auth)
 	if opts.Alt == "responses/compact" {
 		to = sdktranslator.FromString("openai-response")
 		endpoint = "/responses/compact"
@@ -142,6 +142,8 @@ func (e *OpenAICompatExecutor) Execute(ctx context.Context, auth *cliproxyauth.A
 		translated = sanitizeOpenAIResponsesReasoningEncryptedContent(ctx, "openai compat executor", translated)
 	}
 	reporter.SetTranslatedReasoningEffort(translated, to.String())
+
+	if e.isCommandCodeProvider(auth) { translated = transformToCommandCode(baseModel, translated) }
 
 	url := strings.TrimSuffix(baseURL, "/") + endpoint
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(translated))
@@ -207,6 +209,10 @@ func (e *OpenAICompatExecutor) Execute(ctx context.Context, auth *cliproxyauth.A
 	reporter.EnsurePublished(ctx)
 	// Translate response back to source format when needed
 	var param any
+	// Transform NDJSON to OpenAI format for CommandCode
+	if e.resolveCompatConfig(auth) != nil && e.resolveCompatConfig(auth).ChatCompletionsPath == "none" {
+		body = transformCommandCodeResponseToOpenAI(body)
+	}
 	out := sdktranslator.TranslateNonStream(ctx, to, responseFormat, req.Model, opts.OriginalRequest, translated, body, &param)
 	if responseFormat == sdktranslator.FormatOpenAIResponse {
 		out = helps.EnsureResponsesUsageDetails(out)
@@ -355,7 +361,9 @@ func (e *OpenAICompatExecutor) ExecuteStream(ctx context.Context, auth *cliproxy
 	translated = helps.SetBoolIfDifferent(translated, "stream_options.include_usage", true)
 	reporter.SetTranslatedReasoningEffort(translated, to.String())
 
-	url := strings.TrimSuffix(baseURL, "/") + "/chat/completions"
+	if e.isCommandCodeProvider(auth) { translated = transformToCommandCode(baseModel, translated) }
+
+	url := strings.TrimSuffix(baseURL, "/") + e.resolveEndpoint(auth)
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(translated))
 	if err != nil {
 		return nil, err
@@ -409,6 +417,22 @@ func (e *OpenAICompatExecutor) ExecuteStream(ctx context.Context, auth *cliproxy
 		return nil, err
 	}
 	out := make(chan cliproxyexecutor.StreamChunk)
+	isCommandCode := e.resolveCompatConfig(auth) != nil && e.resolveCompatConfig(auth).ChatCompletionsPath == "none"
+	if isCommandCode {
+		ndjsonBody, _ := io.ReadAll(httpResp.Body)
+		httpResp.Body.Close()
+		nonStreamBody := transformCommandCodeResponseToOpenAI(ndjsonBody)
+		reporter.EnsurePublished(ctx)
+		return &cliproxyexecutor.StreamResult{Headers: httpResp.Header.Clone(), Chunks: func() chan cliproxyexecutor.StreamChunk {
+			ch := make(chan cliproxyexecutor.StreamChunk)
+			go func() {
+				defer close(ch)
+				ch <- cliproxyexecutor.StreamChunk{Payload: nonStreamBody}
+				ch <- cliproxyexecutor.StreamChunk{Payload: []byte("[DONE]")}
+			}()
+			return ch
+		}()}, nil
+	}
 	go func() {
 		defer close(out)
 		defer func() {
@@ -651,6 +675,22 @@ func (e *OpenAICompatExecutor) executeImagesStream(ctx context.Context, auth *cl
 	}
 
 	out := make(chan cliproxyexecutor.StreamChunk)
+	isCommandCode := e.resolveCompatConfig(auth) != nil && e.resolveCompatConfig(auth).ChatCompletionsPath == "none"
+	if isCommandCode {
+		ndjsonBody, _ := io.ReadAll(httpResp.Body)
+		httpResp.Body.Close()
+		nonStreamBody := transformCommandCodeResponseToOpenAI(ndjsonBody)
+		reporter.EnsurePublished(ctx)
+		return &cliproxyexecutor.StreamResult{Headers: httpResp.Header.Clone(), Chunks: func() chan cliproxyexecutor.StreamChunk {
+			ch := make(chan cliproxyexecutor.StreamChunk)
+			go func() {
+				defer close(ch)
+				ch <- cliproxyexecutor.StreamChunk{Payload: nonStreamBody}
+				ch <- cliproxyexecutor.StreamChunk{Payload: []byte("[DONE]")}
+			}()
+			return ch
+		}()}, nil
+	}
 	go func() {
 		defer close(out)
 		defer func() {
@@ -1024,3 +1064,22 @@ func (e statusErr) Error() string {
 }
 func (e statusErr) StatusCode() int            { return e.code }
 func (e statusErr) RetryAfter() *time.Duration { return e.retryAfter }
+
+// resolveEndpoint returns the chat completions endpoint, respecting per-provider overrides.
+// resolveEndpoint returns the chat completions endpoint, respecting per-provider overrides.
+func (e *OpenAICompatExecutor) resolveEndpoint(auth *cliproxyauth.Auth) string {
+	compat := e.resolveCompatConfig(auth)
+	if compat != nil && compat.ChatCompletionsPath != "" {
+		if compat.ChatCompletionsPath == "none" { return "" }
+		return compat.ChatCompletionsPath
+	}
+	return "/chat/completions"
+}
+
+// isCommandCodeProvider checks if this auth is for a CommandCode provider.
+func (e *OpenAICompatExecutor) isCommandCodeProvider(auth *cliproxyauth.Auth) bool {
+	compat := e.resolveCompatConfig(auth)
+	return compat != nil && compat.ChatCompletionsPath == "none"
+}
+
+
