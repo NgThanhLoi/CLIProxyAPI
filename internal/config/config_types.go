@@ -675,6 +675,10 @@ type OpenAICompatibility struct {
 	// Nil or a negative value means "use the global request-retry". 0 disables retries.
 	RequestRetry *int `yaml:"request-retry,omitempty" json:"request-retry,omitempty"`
 
+	// ChatCompletionsPath overrides the default /chat/completions endpoint path.
+	// Set to "none" to omit any path suffix (e.g. when baseURL already contains the full endpoint).
+	ChatCompletionsPath string `yaml:"chat-completions-path,omitempty" json:"chat-completions-path,omitempty"`
+
 	// RequestScopedErrors configures custom classification rules for upstream errors.
 	RequestScopedErrors []RequestScopedErrorRule `yaml:"request-scoped-errors,omitempty" json:"request-scoped-errors,omitempty"`
 }
