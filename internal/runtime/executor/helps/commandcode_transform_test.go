@@ -112,13 +112,13 @@ func TestTransformToCommandCodeWithToolHistory(t *testing.T) {
 	}
 
 	asstMsg := msgs[1].(map[string]interface{})
-	if asstMsg["tool_calls"] == nil {
-		t.Errorf("expected tool_calls on assistant message")
+	if asstContent, ok := asstMsg["content"].(string); !ok || !strings.Contains(asstContent, "get_weather") {
+		t.Errorf("expected assistant message content to contain get_weather, got %v", asstMsg["content"])
 	}
 
 	toolMsg := msgs[2].(map[string]interface{})
-	if toolMsg["tool_call_id"] != "call_123" {
-		t.Errorf("expected tool_call_id on tool message, got %v", toolMsg["tool_call_id"])
+	if toolContent, ok := toolMsg["content"].(string); !ok || !strings.Contains(toolContent, "Sunny, 30C") {
+		t.Errorf("expected tool message content to contain Sunny, 30C, got %v", toolMsg["content"])
 	}
 }
 

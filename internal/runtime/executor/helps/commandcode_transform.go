@@ -111,13 +111,6 @@ func TransformToCommandCode(model string, openaiPayload []byte) []byte {
 		})
 	}
 
-	maxTokens := 4096
-	if body.MaxCompletionTokens != nil {
-		maxTokens = *body.MaxCompletionTokens
-	} else if body.MaxTokens != nil {
-		maxTokens = *body.MaxTokens
-	}
-
 	temperature := 0.3
 	if body.Temperature != nil {
 		temperature = *body.Temperature
@@ -127,8 +120,12 @@ func TransformToCommandCode(model string, openaiPayload []byte) []byte {
 		"model":       model,
 		"messages":    messages,
 		"stream":      true,
-		"max_tokens":  maxTokens,
 		"temperature": temperature,
+	}
+	if body.MaxCompletionTokens != nil {
+		params["max_tokens"] = *body.MaxCompletionTokens
+	} else if body.MaxTokens != nil {
+		params["max_tokens"] = *body.MaxTokens
 	}
 	if body.TopP != nil {
 		params["top_p"] = *body.TopP
