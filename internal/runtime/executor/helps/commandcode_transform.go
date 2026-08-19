@@ -44,6 +44,7 @@ func TransformToCommandCode(model string, openaiPayload []byte) []byte {
 
 	var systemTexts []string
 	var messages []map[string]interface{}
+	toolNamesByCallID := make(map[string]string)
 
 	for _, msg := range body.Messages {
 		if msg.Role == "system" {
@@ -53,20 +54,61 @@ func TransformToCommandCode(model string, openaiPayload []byte) []byte {
 			}
 			continue
 		}
-		m := map[string]interface{}{
+
+		if msg.Role == "tool" {
+			callID := msg.ToolCallID
+			toolName := msg.Name
+			if toolName == "" {
+				toolName = toolNamesByCallID[callID]
+			}
+			if toolName == "" {
+				toolName = "tool"
+			}
+			contentStr := flattenContent(msg.Content)
+			messages = append(messages, map[string]interface{}{
+				"role":    "user",
+				"content": fmt.Sprintf("[Tool Result from %s (%s)]:\n%s", toolName, callID, contentStr),
+			})
+			continue
+		}
+
+		var textParts []string
+		if text := flattenContent(msg.Content); text != "" {
+			textParts = append(textParts, text)
+		}
+		if msg.Role == "assistant" && msg.ToolCalls != nil {
+			if tcSlice, ok := msg.ToolCalls.([]interface{}); ok {
+				for _, tc := range tcSlice {
+					if tcMap, ok := tc.(map[string]interface{}); ok {
+						id, _ := tcMap["id"].(string)
+						var name string
+						var argsStr string
+						if fn, ok := tcMap["function"].(map[string]interface{}); ok {
+							name, _ = fn["name"].(string)
+							if s, ok := fn["arguments"].(string); ok {
+								argsStr = s
+							} else if b, err := json.Marshal(fn["arguments"]); err == nil {
+								argsStr = string(b)
+							}
+						}
+						if id != "" && name != "" {
+							toolNamesByCallID[id] = name
+							textParts = append(textParts, fmt.Sprintf("[Assistant Tool Call: %s(%s), id: %s]", name, argsStr, id))
+						}
+					}
+				}
+			}
+		}
+
+		content := strings.Join(textParts, "\n\n")
+		if content == "" {
+			content = " "
+		}
+
+		messages = append(messages, map[string]interface{}{
 			"role":    msg.Role,
-			"content": toContentBlocks(msg.Content),
-		}
-		if msg.ToolCalls != nil {
-			m["tool_calls"] = msg.ToolCalls
-		}
-		if msg.ToolCallID != "" {
-			m["tool_call_id"] = msg.ToolCallID
-		}
-		if msg.Name != "" {
-			m["name"] = msg.Name
-		}
-		messages = append(messages, m)
+			"content": content,
+		})
 	}
 
 	maxTokens := 4096
@@ -91,11 +133,11 @@ func TransformToCommandCode(model string, openaiPayload []byte) []byte {
 	if body.TopP != nil {
 		params["top_p"] = *body.TopP
 	}
-	if body.Tools != nil {
-		params["tools"] = body.Tools
+	if ccTools := toCommandCodeTools(body.Tools); ccTools != nil {
+		params["tools"] = ccTools
 	}
-	if body.ToolChoice != nil {
-		params["tool_choice"] = body.ToolChoice
+	if ccChoice := toCommandCodeToolChoice(body.ToolChoice); ccChoice != nil {
+		params["tool_choice"] = ccChoice
 	}
 	if system := strings.Join(systemTexts, "\n\n"); system != "" {
 		params["system"] = system
@@ -175,6 +217,87 @@ func toContentBlocks(content interface{}) []map[string]interface{} {
 		return blocks
 	default:
 		return []map[string]interface{}{{"type": "text", "text": fmt.Sprintf("%v", content)}}
+	}
+}
+
+func toCommandCodeTools(tools interface{}) interface{} {
+	if tools == nil {
+		return nil
+	}
+	slice, ok := tools.([]interface{})
+	if !ok {
+		return tools
+	}
+	var out []map[string]interface{}
+	for _, item := range slice {
+		m, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		if _, hasName := m["name"]; hasName {
+			if _, hasSchema := m["input_schema"]; hasSchema {
+				out = append(out, m)
+				continue
+			}
+		}
+		fn, ok := m["function"].(map[string]interface{})
+		if !ok {
+			out = append(out, m)
+			continue
+		}
+		tool := map[string]interface{}{
+			"name": fn["name"],
+		}
+		if desc, ok := fn["description"].(string); ok && desc != "" {
+			tool["description"] = desc
+		}
+		if params, ok := fn["parameters"].(map[string]interface{}); ok {
+			tool["input_schema"] = params
+		} else {
+			tool["input_schema"] = map[string]interface{}{
+				"type": "object",
+			}
+		}
+		out = append(out, tool)
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+func toCommandCodeToolChoice(toolChoice interface{}) interface{} {
+	if toolChoice == nil {
+		return nil
+	}
+	switch v := toolChoice.(type) {
+	case string:
+		switch v {
+		case "auto":
+			return map[string]interface{}{"type": "auto"}
+		case "required":
+			return map[string]interface{}{"type": "any"}
+		case "none":
+			return nil
+		default:
+			return map[string]interface{}{"type": "auto"}
+		}
+	case map[string]interface{}:
+		if t, ok := v["type"].(string); ok {
+			if t == "function" {
+				if fn, ok := v["function"].(map[string]interface{}); ok {
+					if name, ok := fn["name"].(string); ok {
+						return map[string]interface{}{
+							"type": "tool",
+							"name": name,
+						}
+					}
+				}
+			}
+		}
+		return v
+	default:
+		return nil
 	}
 }
 
