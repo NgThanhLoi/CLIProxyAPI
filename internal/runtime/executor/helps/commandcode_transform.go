@@ -25,8 +25,11 @@ func GenerateCommandCodeUUID() string {
 func TransformToCommandCode(model string, openaiPayload []byte) []byte {
 	var body struct {
 		Messages []struct {
-			Role    string      `json:"role"`
-			Content interface{} `json:"content"`
+			Role       string      `json:"role"`
+			Content    interface{} `json:"content"`
+			ToolCalls  interface{} `json:"tool_calls,omitempty"`
+			ToolCallID string      `json:"tool_call_id,omitempty"`
+			Name       string      `json:"name,omitempty"`
 		} `json:"messages"`
 		MaxTokens           *int        `json:"max_tokens,omitempty"`
 		MaxCompletionTokens *int        `json:"max_completion_tokens,omitempty"`
@@ -50,10 +53,20 @@ func TransformToCommandCode(model string, openaiPayload []byte) []byte {
 			}
 			continue
 		}
-		messages = append(messages, map[string]interface{}{
+		m := map[string]interface{}{
 			"role":    msg.Role,
 			"content": toContentBlocks(msg.Content),
-		})
+		}
+		if msg.ToolCalls != nil {
+			m["tool_calls"] = msg.ToolCalls
+		}
+		if msg.ToolCallID != "" {
+			m["tool_call_id"] = msg.ToolCallID
+		}
+		if msg.Name != "" {
+			m["name"] = msg.Name
+		}
+		messages = append(messages, m)
 	}
 
 	maxTokens := 4096

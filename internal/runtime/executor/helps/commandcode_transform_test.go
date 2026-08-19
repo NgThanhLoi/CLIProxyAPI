@@ -61,6 +61,67 @@ func TestTransformToCommandCode(t *testing.T) {
 	}
 }
 
+func TestTransformToCommandCodeWithToolHistory(t *testing.T) {
+	openaiPayload := []byte(`{
+		"model": "deepseek-v4-pro",
+		"messages": [
+			{"role": "user", "content": "What is the weather?"},
+			{
+				"role": "assistant",
+				"content": null,
+				"tool_calls": [
+					{
+						"id": "call_123",
+						"type": "function",
+						"function": {"name": "get_weather", "arguments": "{\"city\":\"Hanoi\"}"}
+					}
+				]
+			},
+			{
+				"role": "tool",
+				"tool_call_id": "call_123",
+				"content": "Sunny, 30C"
+			}
+		],
+		"tools": [
+			{
+				"type": "function",
+				"function": {
+					"name": "get_weather",
+					"description": "Get weather for a city",
+					"parameters": {"type": "object", "properties": {"city": {"type": "string"}}}
+				}
+			}
+		]
+	}`)
+
+	transformed := TransformToCommandCode("deepseek-v4-pro", openaiPayload)
+	var ccReq map[string]interface{}
+	if err := json.Unmarshal(transformed, &ccReq); err != nil {
+		t.Fatalf("failed to unmarshal: %v", err)
+	}
+
+	params := ccReq["params"].(map[string]interface{})
+	if params["tools"] == nil {
+		t.Errorf("expected tools in params")
+	}
+
+	msgs := params["messages"].([]interface{})
+	if len(msgs) != 3 {
+		t.Fatalf("expected 3 messages, got %d", len(msgs))
+	}
+
+	asstMsg := msgs[1].(map[string]interface{})
+	if asstMsg["tool_calls"] == nil {
+		t.Errorf("expected tool_calls on assistant message")
+	}
+
+	toolMsg := msgs[2].(map[string]interface{})
+	if toolMsg["tool_call_id"] != "call_123" {
+		t.Errorf("expected tool_call_id on tool message, got %v", toolMsg["tool_call_id"])
+	}
+}
+
 func TestTransformCommandCodeResponseToOpenAI(t *testing.T) {
 	ndjson := strings.Join([]string{
 		`{"type":"reasoning-delta","text":"Let me think about this."}`,
