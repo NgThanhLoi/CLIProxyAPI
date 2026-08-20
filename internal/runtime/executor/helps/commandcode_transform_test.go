@@ -247,3 +247,51 @@ func TestCCEventToOpenAIChunks(t *testing.T) {
 		t.Errorf("expected finish_reason stop, got %v", choice3["finish_reason"])
 	}
 }
+
+func TestCCEventToOpenAIChunksToolCallsNoDuplicate(t *testing.T) {
+	state := NewCCStreamState("deepseek-v4-pro")
+
+	// 1. tool-input-start
+	chunks1 := CCEventToOpenAIChunks(`{"type":"tool-input-start","id":"call_123","toolName":"get_weather"}`, state)
+	if len(chunks1) != 1 {
+		t.Fatalf("expected 1 chunk for tool-input-start, got %d", len(chunks1))
+	}
+
+	// 2. tool-input-delta
+	chunks2 := CCEventToOpenAIChunks(`{"type":"tool-input-delta","id":"call_123","delta":"{\"location\":\"Hanoi\"}"}`, state)
+	if len(chunks2) != 1 {
+		t.Fatalf("expected 1 chunk for tool-input-delta, got %d", len(chunks2))
+	}
+
+	// 3. tool-call (finish event for tool) - should NOT duplicate arguments
+	chunks3 := CCEventToOpenAIChunks(`{"type":"tool-call","toolCallId":"call_123","toolName":"get_weather","input":{"location":"Hanoi"}}`, state)
+	if len(chunks3) != 0 {
+		t.Fatalf("expected 0 chunks for tool-call after deltas were streamed, got %d", len(chunks3))
+	}
+}
+
+func TestCCEventToOpenAIChunksStandaloneToolCall(t *testing.T) {
+	state := NewCCStreamState("deepseek-v4-pro")
+
+	// Standalone tool-call without prior tool-input-start/delta
+	chunks := CCEventToOpenAIChunks(`{"type":"tool-call","toolCallId":"call_999","toolName":"read_file","input":{"path":"main.go"}}`, state)
+	if len(chunks) != 1 {
+		t.Fatalf("expected 1 chunk for standalone tool-call, got %d", len(chunks))
+	}
+	var chunkMap map[string]interface{}
+	if err := json.Unmarshal(chunks[0], &chunkMap); err != nil {
+		t.Fatalf("failed to parse chunk: %v", err)
+	}
+	choices := chunkMap["choices"].([]interface{})
+	tc := choices[0].(map[string]interface{})["delta"].(map[string]interface{})["tool_calls"].([]interface{})[0].(map[string]interface{})
+	if tc["id"] != "call_999" {
+		t.Errorf("expected id call_999, got %v", tc["id"])
+	}
+	fn := tc["function"].(map[string]interface{})
+	if fn["name"] != "read_file" {
+		t.Errorf("expected function name read_file, got %v", fn["name"])
+	}
+	if fn["arguments"] != "{\"path\":\"main.go\"}" {
+		t.Errorf("expected arguments {\"path\":\"main.go\"}, got %v", fn["arguments"])
+	}
+}

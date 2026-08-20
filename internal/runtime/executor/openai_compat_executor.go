@@ -143,12 +143,13 @@ func (e *OpenAICompatExecutor) Execute(ctx context.Context, auth *cliproxyauth.A
 	}
 	reporter.SetTranslatedReasoningEffort(translated, to.String())
 
+	httpPayload := translated
 	if e.isCommandCodeProvider(auth) {
-		translated = helps.TransformToCommandCode(baseModel, translated)
+		httpPayload = helps.TransformToCommandCode(baseModel, translated)
 	}
 
 	url := strings.TrimSuffix(baseURL, "/") + endpoint
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(translated))
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(httpPayload))
 	if err != nil {
 		return resp, err
 	}
@@ -172,7 +173,7 @@ func (e *OpenAICompatExecutor) Execute(ctx context.Context, auth *cliproxyauth.A
 		URL:       url,
 		Method:    http.MethodPost,
 		Headers:   httpReq.Header.Clone(),
-		Body:      translated,
+		Body:      httpPayload,
 		Provider:  e.Identifier(),
 		AuthID:    authID,
 		AuthLabel: authLabel,
@@ -363,12 +364,13 @@ func (e *OpenAICompatExecutor) ExecuteStream(ctx context.Context, auth *cliproxy
 	translated = helps.SetBoolIfDifferent(translated, "stream_options.include_usage", true)
 	reporter.SetTranslatedReasoningEffort(translated, to.String())
 
+	httpPayload := translated
 	if e.isCommandCodeProvider(auth) {
-		translated = helps.TransformToCommandCode(baseModel, translated)
+		httpPayload = helps.TransformToCommandCode(baseModel, translated)
 	}
 
 	url := strings.TrimSuffix(baseURL, "/") + e.resolveEndpoint(auth)
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(translated))
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(httpPayload))
 	if err != nil {
 		return nil, err
 	}
@@ -394,7 +396,7 @@ func (e *OpenAICompatExecutor) ExecuteStream(ctx context.Context, auth *cliproxy
 		URL:       url,
 		Method:    http.MethodPost,
 		Headers:   httpReq.Header.Clone(),
-		Body:      translated,
+		Body:      httpPayload,
 		Provider:  e.Identifier(),
 		AuthID:    authID,
 		AuthLabel: authLabel,
@@ -1105,7 +1107,11 @@ func (e *OpenAICompatExecutor) isCommandCodeProvider(auth *cliproxyauth.Auth) bo
 	if compat == nil {
 		return false
 	}
-	return compat.ChatCompletionsPath == "none" ||
-		strings.Contains(compat.BaseURL, "/alpha/generate") ||
-		strings.EqualFold(compat.Name, "commandcode")
+	if strings.Contains(compat.BaseURL, "/alpha/generate") {
+		return true
+	}
+	if strings.EqualFold(compat.Name, "commandcode") && !strings.Contains(compat.BaseURL, "/provider/") {
+		return true
+	}
+	return false
 }

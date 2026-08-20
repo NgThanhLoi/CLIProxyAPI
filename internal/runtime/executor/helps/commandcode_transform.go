@@ -448,12 +448,13 @@ func TransformCommandCodeResponseToOpenAI(model string, ndjsonBody []byte) []byt
 
 // CCStreamState tracks streaming state across multiple NDJSON events.
 type CCStreamState struct {
-	Model         string
-	ResponseID    string
-	Created       int64
-	ChunkIndex    int
-	ToolIndex     int
-	ToolIndexByID map[string]int
+	Model             string
+	ResponseID        string
+	Created           int64
+	ChunkIndex        int
+	ToolIndex         int
+	ToolIndexByID     map[string]int
+	ToolHasDeltasByID map[string]bool
 }
 
 // NewCCStreamState creates a new CCStreamState.
@@ -462,10 +463,11 @@ func NewCCStreamState(model string) *CCStreamState {
 		model = "commandcode"
 	}
 	return &CCStreamState{
-		Model:         model,
-		ResponseID:    fmt.Sprintf("chatcmpl-cc-%d", time.Now().UnixMilli()),
-		Created:       time.Now().Unix(),
-		ToolIndexByID: make(map[string]int),
+		Model:             model,
+		ResponseID:        fmt.Sprintf("chatcmpl-cc-%d", time.Now().UnixMilli()),
+		Created:           time.Now().Unix(),
+		ToolIndexByID:     make(map[string]int),
+		ToolHasDeltasByID: make(map[string]bool),
 	}
 }
 
@@ -476,6 +478,9 @@ func (s *CCStreamState) ensureInitialized() {
 	}
 	if s.ToolIndexByID == nil {
 		s.ToolIndexByID = make(map[string]int)
+	}
+	if s.ToolHasDeltasByID == nil {
+		s.ToolHasDeltasByID = make(map[string]bool)
 	}
 }
 
@@ -559,12 +564,16 @@ func CCEventToOpenAIChunks(line string, state *CCStreamState) [][]byte {
 		if !ok {
 			break
 		}
+		deltaText := ccGetStr(event, "delta", "inputTextDelta")
+		if deltaText != "" {
+			state.ToolHasDeltasByID[id] = true
+		}
 		delta := map[string]interface{}{
 			"tool_calls": []map[string]interface{}{
 				{
 					"index": idx,
 					"function": map[string]interface{}{
-						"arguments": ccGetStr(event, "delta", "inputTextDelta"),
+						"arguments": deltaText,
 					},
 				},
 			},
@@ -578,33 +587,52 @@ func CCEventToOpenAIChunks(line string, state *CCStreamState) [][]byte {
 			idx = state.ToolIndex
 			state.ToolIndexByID[id] = idx
 			state.ToolIndex++
-		}
-		input := event["input"]
-		argsStr := "{}"
-		if s, ok := input.(string); ok {
-			argsStr = s
-		} else if b, err := json.Marshal(input); err == nil {
-			argsStr = string(b)
-		}
-		name := ccGetStr(event, "toolName", "name")
-		delta := map[string]interface{}{
-			"tool_calls": []map[string]interface{}{
-				{
-					"index": idx,
-					"id":    id,
-					"type":  "function",
-					"function": map[string]interface{}{
-						"name":      name,
-						"arguments": argsStr,
+			input := event["input"]
+			argsStr := "{}"
+			if s, ok := input.(string); ok {
+				argsStr = s
+			} else if b, err := json.Marshal(input); err == nil {
+				argsStr = string(b)
+			}
+			name := ccGetStr(event, "toolName", "name")
+			delta := map[string]interface{}{
+				"tool_calls": []map[string]interface{}{
+					{
+						"index": idx,
+						"id":    id,
+						"type":  "function",
+						"function": map[string]interface{}{
+							"name":      name,
+							"arguments": argsStr,
+						},
 					},
 				},
-			},
+			}
+			if state.ChunkIndex == 0 {
+				delta["role"] = "assistant"
+			}
+			state.ChunkIndex++
+			out = append(out, ccMakeChunk(state, delta, nil))
+		} else if !state.ToolHasDeltasByID[id] {
+			input := event["input"]
+			argsStr := "{}"
+			if s, ok := input.(string); ok {
+				argsStr = s
+			} else if b, err := json.Marshal(input); err == nil {
+				argsStr = string(b)
+			}
+			delta := map[string]interface{}{
+				"tool_calls": []map[string]interface{}{
+					{
+						"index": idx,
+						"function": map[string]interface{}{
+							"arguments": argsStr,
+						},
+					},
+				},
+			}
+			out = append(out, ccMakeChunk(state, delta, nil))
 		}
-		if state.ChunkIndex == 0 {
-			delta["role"] = "assistant"
-		}
-		state.ChunkIndex++
-		out = append(out, ccMakeChunk(state, delta, nil))
 
 	case "finish-step":
 		fr := ccFinishReason(ccGetStr(event, "finishReason"))
