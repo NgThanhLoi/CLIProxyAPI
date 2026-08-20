@@ -704,7 +704,7 @@ func ccExtractErrorMessage(event map[string]interface{}) string {
 
 func ccFinishReason(reason string) string {
 	switch reason {
-	case "tool_use":
+	case "tool_use", "tool-calls", "tool_calls":
 		return "tool_calls"
 	case "end_turn", "stop":
 		return "stop"
